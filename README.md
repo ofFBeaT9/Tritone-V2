@@ -223,18 +223,122 @@ pytest -q
 
 ---
 
-## 🧾 Instruction set (BTISA)
+## The GT-LOGIC Cell Library
 
-The assembler supports all core instructions plus common pseudo‑instructions (e.g., `LDI`, `MOV`, `JMP`, `RET`, `BEQZ`, `BNEZ`).
+### Cell Inventory
 
-A representative grouping:
+| Cell | Function | Transistors | Validated |
+|------|----------|-------------|-----------|
+| **STI** | Y = −A (full invert) | 6 | ✅ |
+| **PTI** | Positive threshold | 6 | ✅ |
+| **NTI** | Negative threshold | 6 | ✅ |
+| **TMIN** | Y = MIN(A,B) — AND | 10 | ✅ |
+| **TMAX** | Y = MAX(A,B) — OR | 10 | ✅ |
+| **TNAND** | Y = −MIN(A,B) | 16 | ✅ |
+| **TNOR** | Y = −MAX(A,B) | 16 | ✅ |
+| **TSUM** | Sum without carry | 20 | ✅ |
+| **TMUX3** | 3:1 Multiplexer | 24 | ✅ |
+| **BTHA** | Half Adder | 30 | ✅ |
+| **BTFA** | Full Adder | 42 | ✅ |
 
-- Arithmetic: `ADD`, `SUB` (via `ADD` + negate), `MUL` *(iterative/experimental)*
-- Logic: `MIN`, `MAX`, `XOR`, `INV`, `PTI`, `NTI`
-- Memory: `LD`, `ST`, `LDT`, `STT`
-- Control: `JMP`, `JAL`, `BEQ`, `BNE`, `BLT`
+### Standard Ternary Inverter (STI)
 
-> See `docs/specs/btisa_*.md` for the canonical ISA reference.
+The fundamental cell — implements balanced ternary negation:
+
+| Input | Output |
+|-------|--------|
+| +1 (1.8V) | −1 (0V) |
+| 0 (0.9V) | 0 (0.9V) |
+| −1 (0V) | +1 (1.8V) |
+
+### Balanced Ternary Full Adder (BTFA)
+
+The BTFA computes `Sum = (A + B + Cin) mod 3` and `Cout = (A + B + Cin) div 3`.
+
+**Exhaustive validation: 27/27 test vectors PASS (100%)**
+
+---
+
+## BTISA Instruction Set
+
+### Overview
+
+- **Word size**: 27 trits (~42.8 bits equivalent)
+- **Registers**: 9 general-purpose (R0-R8), R0 hardwired to zero
+- **Memory**: 243 instruction words, 729 data words
+- **Encoding**: 9 trits per instruction
+
+### Instruction Encoding
+
+```
+[8:6] Opcode  (3 trits = 27 opcodes possible)
+[5:4] Rd      (2 trits = 9 registers)
+[3:2] Rs1     (2 trits = 9 registers)
+[1:0] Rs2/Imm (2 trits = 9 values or register)
+```
+
+### Complete Instruction Set (26 Instructions)
+
+#### Arithmetic Operations
+| Mnemonic | Operation | Description |
+|----------|-----------|-------------|
+| `ADD` | Rd = Rs1 + Rs2 | Ternary addition |
+| `SUB` | Rd = Rs1 − Rs2 | Ternary subtraction |
+| `NEG` | Rd = −Rs1 | Negate (flip all trits) |
+| `MUL` | Rd = Rs1 × Rs2 | Multiply (future) |
+| `SHL` | Rd = Rs1 << 1 | Shift left (×3) |
+| `SHR` | Rd = Rs1 >> 1 | Shift right (÷3) |
+| `ADDI` | Rd = Rs1 + Imm | Add immediate |
+
+#### Logic Operations
+| Mnemonic | Operation | Description |
+|----------|-----------|-------------|
+| `MIN` | Rd = MIN(Rs1, Rs2) | Tritwise minimum (AND) |
+| `MAX` | Rd = MAX(Rs1, Rs2) | Tritwise maximum (OR) |
+| `XOR` | Rd = Rs1 XOR Rs2 | Ternary XOR (mod-3 add) |
+| `INV` | Rd = STI(Rs1) | Standard ternary invert |
+| `PTI` | Rd = PTI(Rs1) | Positive threshold invert |
+| `NTI` | Rd = NTI(Rs1) | Negative threshold invert |
+
+#### Memory Operations
+| Mnemonic | Operation | Description |
+|----------|-----------|-------------|
+| `LD` | Rd = Mem[Rs1+Imm] | Load word |
+| `ST` | Mem[Rs1+Imm] = Rs2 | Store word |
+| `LDT` | Rd = Mem[Rs1][Imm] | Load single trit |
+| `STT` | Mem[Rs1][Imm] = Rs2[0] | Store single trit |
+| `LUI` | Rd = Imm << 18 | Load upper immediate |
+
+#### Control Flow
+| Mnemonic | Operation | Description |
+|----------|-----------|-------------|
+| `BEQ` | if Rs1=Rs2: PC += Imm | Branch if equal |
+| `BNE` | if Rs1≠Rs2: PC += Imm | Branch if not equal |
+| `BLT` | if Rs1<Rs2: PC += Imm | Branch if less than |
+| `JAL` | Rd = PC+1; PC = Rs1+Imm | Jump and link |
+| `JALR` | Rd = PC+1; PC = Rs1 | Jump and link register |
+| `JR` | PC = Rs1 | Jump register (return) |
+
+#### System Operations
+| Mnemonic | Operation | Description |
+|----------|-----------|-------------|
+| `NOP` | — | No operation |
+| `HALT` | — | Halt execution |
+| `ECALL` | — | Environment call |
+
+### Example Program
+
+```asm
+# Compute sum of 1 + 2 + 3 = 6
+    LDI  R1, 1        # R1 = 1
+    LDI  R2, 2        # R2 = 2
+    LDI  R3, 3        # R3 = 3
+    ADD  R4, R1, R2   # R4 = 1 + 2 = 3
+    ADD  R5, R4, R3   # R5 = 3 + 3 = 6
+    HALT
+```
+
+---
 
 ---
 
