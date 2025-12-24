@@ -255,7 +255,7 @@ The fundamental cell — implements balanced ternary negation:
 
 The BTFA computes `Sum = (A + B + Cin) mod 3` and `Cout = (A + B + Cin) div 3`.
 
-**Exhaustive validation: 27/27 test vectors PASS (100%)**
+
 
 ---
 
